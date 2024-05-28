@@ -1,6 +1,7 @@
-import User from "../models/UserModel.js";
-import mailer from "../utils/Mailer.js";
-import crypto from "crypto";
+const User = require('../models/userModel.js')
+var crypto = require('crypto');
+var mailer = require('../utils/Mailer.js');
+const generateToken = require("../utils/generateToken.js")
 
 const registerUser = async (req, res, next) => {
   try {
@@ -26,7 +27,7 @@ const registerUser = async (req, res, next) => {
     });
 
     // Generate 20 bit activation code, crypto is build in package of nodejs
-    crypto.randomBytes(20, function (err, buf) {
+    crypto.randomBytes(20, async (err, buf) => {
       // Ensure the activation link is unique
       user.activeToken = user._id + buf.toString("hex");
 
@@ -40,27 +41,29 @@ const registerUser = async (req, res, next) => {
       //Sending activation mail
       mailer.send({
         to: req.body.email,
-        subject: "Welcome",
-        html:
-          'Please click <a href="' +
-          link +
-          '"> here </a> to activate your account.',
-      });
-
-      //Save usre object
-      user.save(function (err, user) {
-        if(err) return next(err);
-        res.status(201).json({
-            success: true,
-            msg: 'The activation email has been sent to ' + user + ', please click the activation link within 24 hours.'
-        })
+        subject: 'Welcome',
+        html: 'Please click <a href="' + link + '"> here </a> to activate your account.'
       })
+
+      try {
+        await user.save()
+        res.status(201).json({
+          success: true,
+          msg: `The activation email has been sent to ${user.email}, please click the activation link within 24 hours.`
+        });
+      } catch (error) {
+        return next(err)
+      }
     });
   } catch (error) {
-    console.log(error)
+    console.log(error);
     res.status(500).json({
-        success: false,
-        msg: 'Server having some issues'
-    })
+      success: false,
+      msg: "Server having some issues",
+    });
   }
 };
+
+module.exports = {
+  registerUser
+}
